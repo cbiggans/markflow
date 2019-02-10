@@ -1,0 +1,221 @@
+
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="viewport" content="width=device-width">
+        <link rel="shortcut icon" href="/img/favicon.ico">
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+
+        {% load static %}
+        <script src="{% static 'marks/lib/jsplumb.js' %}"></script>
+        <script src="{% static 'marks/app/setup.js' %}"></script>
+        <script src="{% static 'marks/js/jquery.validate.js' %}"></script>
+        <script src="{% static 'marks/js/additional-methods.js' %}"></script>
+
+        <title>jsPlumb Toolkit - build Flowcharts, Diagrams and connectivity based applications fast</title>
+        <link href="//fonts.googleapis.com/css?family=Lato:400,700" rel="stylesheet">
+
+        <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+        <link href="{% static 'marks/css/main.css' %}" rel="stylesheet">
+        <link href="{% static 'marks/css/jsplumbtoolkit-defaults.css' %}" rel="stylesheet">
+        <link href="{% static 'marks/css/jsplumbtoolkit-demo.css' %}" rel="stylesheet">
+
+        <link href="{% static 'marks/app.css' %}" rel="stylesheet">
+    </head>
+
+    <body class="jtk-bootstrap jtk-bootstrap-wide">
+        <div class="jtk-header">
+            <div class="social-nav hidden-xs">
+                <style>
+                    .btn-try {
+                        background-color: #489ea5;
+                        border-radius: 3px;
+                        padding: 4px 10px;
+                        color: white;
+                        outline: none;
+                        border: none;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        font-size:17px;
+                    }
+
+                    .btn-try:hover {
+                        background-color: #5eb4bb;
+                    }
+
+                    .btn-try a {
+                        color:whitesmoke;
+                        text-decoration: none;
+                    }
+
+                    .btn-try:hover a {
+                        color:white;
+                    }
+                </style>
+            </div>
+        </div>
+        <div class="jtk-page-container">
+            <div class="jtk-container">
+                        
+                <div class="jtk-demo-main">
+                <!-- demo -->
+                    <div class="jtk-demo-canvas canvas-wide flowchart-demo jtk-surface jtk-surface-nopan" id="canvas">                    </div>
+                <!-- /demo --></div>
+                <div class="full-width-container">
+                    <div class="container">
+                    <!-- explanation -->
+                        <div class="description">
+                            <h4>FLOWCHART</h4>
+                            <p>Nodes are connected with the Flowchart connector.</p>
+                            <p>Hover over connections to highlight them, click to delete. </p>
+                            <p>Drag new connections from hollow dots to solid dots. You can also drag connections from their source/target to other sources/targets, or back onto themselves.</p>
+                            <p>By default, Flowchart connectors have square corners, but by setting the 'cornerRadius' parameter, as we have here, you can get rounded corners.</p>
+                        </div>
+                    <!-- /explanation --></div>
+                </div>
+            </div>
+        </div>
+        <script type="text/javascript">
+            {% autoescape off %}
+            var markMappingStr = '{{ mark_mapping }}';
+            {% endautoescape %}
+
+            var markMapping = JSON.parse( markMappingStr );
+            var markDiagram = undefined
+
+            // -------------------- Refactor ------------------------
+            var top_row = 10;
+            var left_column = 10;
+            var row_dif = 14;
+            var column_dif = 15;
+
+            var addWindowToDiagram = function(node, row, col) {
+                window_el = document.createElement("div");
+                window_el.id = "flowchartWindow" + node.id
+                window_el.classList.add("window");
+                window_el.classList.add("jtk-node");
+                window_el.innerHTML = "<strong>"+node.id+"</strong><br /><br />";
+                window_el.style.top = (top_row + row_dif*(row-1)) + "em";
+                window_el.style.left = (left_column + column_dif*(col-1)) + "em";
+
+                document.getElementById("canvas").appendChild(window_el);
+            }
+            // -------------------- EndRefactor ------------------------
+            
+            var walkMarkMapAddingElements = function(markMapping, currentRow, currentCol, nodesWalked) {
+                var root = markMapping.node;
+
+                // If already added node to diagram, quit out of this
+                if(nodesWalked.includes(root.id)) {
+                    return;
+                }
+
+                nodesWalked.push(root.id);
+
+                addWindowToDiagram({'id': root.id}, currentRow, currentCol);
+
+                markMapping.children.forEach(function(child, index) {
+                    walkMarkMapAddingElements(child, index+1, currentCol+1, nodesWalked);
+                });
+            };
+
+            var walkMarkMapAddingConnections = function(markDiagram, markMapping) {
+                var root = markMapping.node;
+
+                markMapping.children.forEach(function(child, index) {
+                    let tmp = {
+                        source: "flowchartWindow" + root.id, // + "RightMiddle",
+                        target: "flowchartWindow" + child.node.id,
+                        // editable: true,
+                        anchors:["Right", "Left"],
+                        type: "basic",
+                    }
+                    // TODO XXX: Look at the # of anchors the target has and update
+                    //  the anchors based on that so that can see all target anchors based on that
+                    markDiagram.jsPlumbInstance.connect(tmp);
+                    walkMarkMapAddingConnections(markDiagram, child);
+                });
+            };
+
+            jsPlumb.ready(function () {
+
+                markDiagram = window.jsp = new MarkDiagram();
+                var instance = markDiagram.jsPlumbInstance;
+                var nodesWalked = []
+
+                walkMarkMapAddingElements(markMapping, 1, 1, nodesWalked);
+
+                // suspend drawing and initialise.
+                instance.batch(function () {
+
+                    // TODO XXX: forEach Window element, add endpoints
+                    // markDiagram.addEndpoints("flowchartWindow1", ["RightMiddle", "BottomCenter"], ["LeftMiddle", "TopCenter"]);
+                    // markDiagram.addEndpoints("flowchartWindow3", ["RightMiddle", "BottomCenter"], ["LeftMiddle", "TopCenter"]);
+                    // markDiagram.addEndpoints("flowchartWindow2", ["RightMiddle", "BottomCenter"], ["LeftMiddle", "TopCenter"]);
+                    // markDiagram.addEndpoints("flowchartWindow4", ["RightMiddle", "BottomCenter"], ["LeftMiddle", "TopCenter"]);
+
+                    markDiagram.addEndpoints("flowchartWindow1", ["RightMiddle", "BottomCenter"], []);
+                    markDiagram.addEndpoints("flowchartWindow3", ["RightMiddle", "BottomCenter"], []);
+                    markDiagram.addEndpoints("flowchartWindow2", ["RightMiddle", "BottomCenter"], []);
+                    markDiagram.addEndpoints("flowchartWindow4", ["RightMiddle", "BottomCenter"], []);
+
+                    let windows = jsPlumb.getSelector(".jtk-node")
+                    markDiagram.jsPlumbInstance.makeTarget(windows, {
+                        dropOptions: { hoverClass: "hover" },
+                        anchor: "Left",
+                        endpoint:[ "Dot", { radius: 11, cssClass: "large-green" }],
+                    });
+
+                    markDiagram.initWindowListeners(".flowchart-demo .window");
+
+                    walkMarkMapAddingConnections(markDiagram, markMapping);
+
+                    // connect a few up
+                    // markDiagram.connect("Window1RightMiddle", "Window2LeftMiddle");
+                    // markDiagram.connect("Window2RightMiddle", "Window3LeftMiddle");
+                    // markDiagram.connect("Window2BottomCenter", "Window4LeftMiddle");
+                    // markDiagram.connect("Window3BottomCenter", "Window4TopCenter");
+                    //
+
+                    //
+                    // listen for clicks on connections, and offer to delete connections on click.
+                    //
+                    markDiagram.bindClick(function (conn, originalEvent) {
+                        if (confirm("Delete connection from " + conn.sourceId + " to " + conn.targetId + "?"))
+                            markDiagram.deleteConnection(conn);
+                        // conn.toggleType("basic");
+                    });
+
+                    markDiagram.bindConnectionDrag(function (connection) {
+                        console.log("connection " + connection.id + " is being dragged. suspendedElement is ", connection.suspendedElement, " of type ", connection.suspendedElementType);
+                    });
+
+                    markDiagram.bindConnectionDragStop(function (connection) {
+                        console.log("connection " + connection.id + " was dragged");
+                    });
+
+                    markDiagram.bindConnectionMoved(function (params) {
+                        console.log("connection " + params.connection.id + " was moved");
+                    });
+
+                    markDiagram.bindConnection(function (connection) {
+                        // console.log("connection " + params.connection.id + " was created");
+                        console.log("connection was created");
+                    });
+
+                    markDiagram.bindDisconnection(function (connection, originalEvent) {
+                        // console.log("connection " + params.connection.id + " was created");
+                        console.log("connection was deleted");
+                    });
+                });
+
+                // jsPlumb.fire("jsPlumbDemoLoaded", instance);
+
+            });
+        </script>
+    </body>
+
+</html>

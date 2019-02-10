@@ -1,0 +1,9 @@
+{% if latest_marks %}
+    <ul>
+    {% for mark in latest_marks %}
+        <li><a href="{% url 'marks:details' mark.id %}">{{ mark.description }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No Marks Found</p>
+{% endif %}

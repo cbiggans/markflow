@@ -1,0 +1,37 @@
+<p>
+    Welcome to the details of Mark #{{ mark.id }}
+</p>
+{% if error_message %}
+    <p><strong>{{ error_message }}</strong></p>
+{% endif %}
+<p>
+    Description: {{ mark.description }}<br />
+    Created At: {{ mark.created_at }}<br />
+    Modified At: {{ mark.modified_at }}<br />
+</p>
+<h1>Children</h1>
+<p>
+    <ul>
+        {% for child in children %}
+        <li>
+            <a href="{% url 'marks:details' child.id %}">{{ child.description }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</p>
+<h1>Parents</h1>
+<p>
+    <ul>
+        {% for parent in parents %}
+        <li>
+            <a href="{% url 'marks:details' parent.id %}">{{ parent.description }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</p>
+
+<form action="{% url 'marks:update' mark.id %}" method="post">
+    {% csrf_token %}
+    <input type="text" name="description" />
+    <input type="submit" />
+</form>
